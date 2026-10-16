@@ -4,40 +4,57 @@
 
 ANAC — Dados Estatísticos do Transporte Aéreo (dados abertos).
 
-- Origem usada para o `2025.csv`: página "Dados e Estatísticas" da ANAC —
+- Origem do `2025.csv`: página "Dados e Estatísticas" da ANAC —
   https://www.gov.br/anac/pt-br/assuntos/dados-e-estatisticas/dados-estatisticos
-  (opções "Dados Estatísticos completos", "Dados dos últimos 10 anos" e ferramenta de consulta).
 - Página temática de dados abertos:
   https://www.gov.br/anac/pt-br/acesso-a-informacao/dados-abertos/areas-de-atuacao/voos-e-operacoes-aereas/dados-estatisticos-do-transporte-aereo
-- Arquivo histórico completo (CSV, separador `;`, encoding latin1):
+- Arquivo histórico completo (CSV, separador `;`, encoding latin1), desde 2000:
   https://sistemas.anac.gov.br/dadosabertos/Voos%20e%20opera%C3%A7%C3%B5es%20a%C3%A9reas/Dados%20Estat%C3%ADsticos%20do%20Transporte%20A%C3%A9reo/Dados_Estatisticos.csv
-  (≈360 MB, registros desde 2000)
 
-## Como obter
+## O que há aqui
 
-```bash
-python scripts/baixar_dados.py
-```
+- `2025.csv` — arquivo baixado da ANAC, **versionado no repositório** (9,7 MB, 37.988 linhas,
+  38 colunas, separador `;`, encoding latin1). Contém voos domésticos **e** internacionais
+  de 2025.
 
-O script baixa o arquivo oficial, seleciona a janela de interesse e grava o recorte em
-`data/raw/` (não versionado). `scripts/baixar_dados.py` é a única forma de obter os dados
-usada no projeto — nenhum CSV bruto é versionado no repositório.
+> Como o arquivo está no repositório, não há script de obtenção: o enunciado aceita
+> "dados, ou o script que os obtém".
 
-## Estrutura esperada
+> A preencher: link exato do arquivo baixado e data de acesso.
 
-- `data/raw/` — dado bruto da ANAC, como baixado (ignorado pelo git).
-- `data/processed/` — tabelas derivadas (rotas agregadas, métricas por nó), geradas pelos notebooks.
-- `data/externo/` — arquivos auxiliares não obtidos por script (ex. GeoJSON de estados); versionados por serem pequenos.
+## Estrutura do arquivo
+
+Colunas usadas na análise:
+
+| coluna | uso |
+|---|---|
+| `ANO`, `MÊS` | janela temporal (o arquivo inteiro é 2025) |
+| `AEROPORTO DE {ORIGEM,DESTINO} (SIGLA)` | identidade do nó (sigla ICAO) |
+| `AEROPORTO DE {ORIGEM,DESTINO} (NOME/UF/REGIÃO)` | atributos de nó |
+| `AEROPORTO DE {ORIGEM,DESTINO} (PAÍS)` | filtro de voo doméstico |
+| `NATUREZA` | classificação ANAC de doméstico/internacional — **não confiável**, ver abaixo |
+| `DECOLAGENS` | peso de oferta |
+| `PASSAGEIROS PAGOS` | peso de demanda |
 
 ## Limpeza aplicada
 
-1. Seleção da janela: ano de 2025 (coluna `ANO`).
-2. Filtro de rotas ativas: `DECOLAGENS > 0`.
-3. Agregação por par origem–destino, somando `DECOLAGENS` e `PASSAGEIROS PAGOS`.
-4. Preservação de atributos de nó: sigla, nome, UF e região do aeródromo.
+1. **Janela:** `ANO == 2025` (o arquivo já é só 2025).
+2. **Doméstico:** `AEROPORTO DE ORIGEM (PAÍS) == 'BRASIL'` **e**
+   `AEROPORTO DE DESTINO (PAÍS) == 'BRASIL'`.
+   O campo oficial `NATUREZA` **não** foi usado: a ANAC classifica como
+   `INTERNACIONAL` 671 linhas que são voos internos (Curitiba→Campinas,
+   Manaus→Belém, Galeão→Guarulhos, entre outras).
+3. **Rota ativa:** `DECOLAGENS > 0`.
+4. **Sem self-loop:** descarta origem == destino (84 rotas, 963 linhas, ex.
+   `SBBR→SBBR`, `SBGR→SBGR`, `SBGL→SBGL`).
+5. **Agregação:** agrupado por par (origem, destino), somando `DECOLAGENS` e
+   `PASSAGEIROS PAGOS`, preservando nome, UF e região dos dois aeródromos.
 
-## Pendência de verificação
+Resultado do recorte: **176 nós, 1660 arestas dirigidas, densidade 0,0539**.
+`SBBP` (Araxá) é o único aeródromo sem rota de saída.
 
-O arquivo `2025.csv` usado no notebook original (`Air_traffic_Brazil.ipynb`) não está no
-repositório e sua origem exata precisa ser confirmada com o Felipe (presume-se recorte anual do
-`Dados_Estatisticos.csv`). Enquanto isso não for confirmado, o recorte oficial é o do script acima.
+## Pendências
+
+- Registrar o link exato do arquivo baixado e a data de acesso.
+- Coordenadas dos aeródromos: hoje vêm de um dicionário manual dentro do notebook.
+  Falta uma fonte oficial e versionada.

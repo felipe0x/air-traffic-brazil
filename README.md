@@ -26,8 +26,8 @@ Quem se beneficia da resposta: quem precisa decidir contingência na malha (oper
 
 - **Fonte:** ANAC — Dados Estatísticos do Transporte Aéreo (dados abertos).
   Origem do recorte usado: https://www.gov.br/anac/pt-br/assuntos/dados-e-estatisticas/dados-estatisticos
-- **Como obter:** `python scripts/baixar_dados.py` (a implementar). Nenhum CSV bruto é versionado; a obtenção é reproduzível pelo script.
-- **Formato:** CSV, separador `;`, encoding latin1.
+- **Como obter:** o arquivo está versionado em [`data/2025.csv`](data/2025.csv) (9,7 MB), baixado manualmente da página acima em 16/10/2026.
+- **Formato:** CSV, separador `;`, encoding latin1, 37.988 linhas, 38 colunas.
 - **Limpeza:** seleção da janela anual; filtro `DECOLAGENS > 0` para rotas ativas; agregação por par origem–destino somando `DECOLAGENS` e `PASSAGEIROS PAGOS`; preservação de sigla, nome, UF e região do aeródromo.
 
 > A preencher: link do arquivo exato baixado e data de acesso.

@@ -1,0 +1,21 @@
+# Dados brutos e derivados (reobtidos por script)
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Sistema
+.DS_Store
+
+# Local: não publicar
+AGENTS.md
+Avaliacao_1_Projeto.pdf

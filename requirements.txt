@@ -1,0 +1,14 @@
+# Dependências do projeto (versões validadas em 15/10/2026, Python 3.12.3).
+pandas==3.0.6
+numpy==2.5.4
+matplotlib==3.11.2
+networkx==3.7
+scipy==1.18.1
+geopandas==1.2.0
+jupyterlab==4.6.4
+ipykernel==7.4.0
+nbconvert==7.17.2
+
+# Opcionais (usar só se necessário; registrar no README)
+# nxviz>=0.7.4
+# pydot

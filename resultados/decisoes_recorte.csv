@@ -1,0 +1,7 @@
+decisao,alternativas,escolha,porque,efeito
+Janela temporal,ano de 2025 (arquivo inteiro) × mês × semestre,ano de 2025 (12 meses),"pergunta é de conectividade estrutural; mês único perde 18 aeródromos (7,2% dos voos)",176 nós e 1.660 rotas; janeiro sozinho teria 158 e 1.039
+Malha doméstica,tudo × só origem BR × BR/BR,origem e destino no Brasil (PAÍS = BRASIL nas duas pontas),a pergunta é sobre a malha doméstica; o internacional conecta o país por poucos pontos,396 -> 176 nós; exclui 18% das decolagens
+Campo de domesticidade,PAÍS das pontas × NATUREZA (ANAC),PAÍS das pontas,NATUREZA marca 671 linhas internas como INTERNACIONAL (erro do campo); PAÍS é verificável,1.654 × 1.660 rotas; diferença de 6 rotas
+Self-loops,manter × remover origem = destino,"remover (84 rotas, 963 linhas)","aeroporto não é rota para si mesmo; inflaria grau, densidade e clustering","1.744 -> 1.660 arestas; densidade 0,0566 -> 0,0539"
+Tipo de voo,todos os grupos × só REGULAR,"todos os grupos (regular, não regular, improdutivo)",a rota existiu; excluir derrubaria 15 aeródromos que só têm voo não regular,"3,5% das decolagens são não regulares/improdutivas (32% das linhas)"
+Rota ativa,DECOLAGENS > 0 × PASSAGEIROS > 0 × DECOLAGENS >= 0,DECOLAGENS > 0,mede oferta (o voo aconteceu); há 5.586 linhas domésticas com 0 passageiro pago e decolagem > 0,37.988 linhas brutas -> 22.128 no recorte (23.091 antes de tirar self-loops)

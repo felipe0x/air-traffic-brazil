@@ -19,6 +19,7 @@ import math
 import random
 from pathlib import Path
 
+import geopandas as gpd
 import networkx as nx
 import numpy as np
 import pandas as pd
@@ -187,11 +188,6 @@ def agregar_rotas(d: pd.DataFrame) -> pd.DataFrame:
     )
 
 
-def carregar_rotas_canonicas() -> pd.DataFrame:
-    """Atalho: arquivo bruto -> recorte canônico -> tabela de rotas agregada."""
-    return agregar_rotas(recortar(carregar_bruto()))
-
-
 # ---------------------------------------------------------------------------
 # construção do grafo
 # ---------------------------------------------------------------------------
@@ -213,8 +209,6 @@ def fundo_mapa(eixo, cor: str = "#f2f2f2", borda: str = "#cccccc") -> bool:
     mapas continuam válidos, só ficam sem o contorno. Gerar com
     ``python scripts/gerar_mapa_base.py``.
     """
-    import geopandas as gpd
-
     caminho = caminho_data() / "brasil_estados.geojson"
     if not caminho.exists():
         return False
@@ -315,21 +309,23 @@ def ccdf(valores: pd.Series | np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return x, np.asarray(y)
 
 
-def matriz_adjacencia(g: nx.Graph, ordem: list) -> np.ndarray:
-    """Matriz de adjacência (ponderada por decolagens) na ordem de nós dada.
+def matriz_adjacencia(g: nx.Graph, ordem: list, peso: str = "decolagens") -> np.ndarray:
+    """Matriz de adjacência ponderada na ordem de nós dada.
 
-    Arestas com ponta fora de ``ordem`` são ignoradas — a matriz serve para ler
-    um recorte da topologia, não o grafo inteiro.
+    ``peso`` escolhe o atributo de aresta usado como valor (padrão
+    ``decolagens``); em grafo não dirigido a matriz é espelhada. Arestas com
+    ponta fora de ``ordem`` são ignoradas — a matriz serve para ler um recorte
+    da topologia, não o grafo inteiro.
     """
     indice = {no: i for i, no in enumerate(ordem)}
     a = np.zeros((len(ordem), len(ordem)))
     for u, v, dados in g.edges(data=True):
         if u not in indice or v not in indice:
             continue
-        peso = dados.get("decolagens", 1.0)
-        a[indice[u], indice[v]] += peso
+        valor = dados.get(peso, 1.0)
+        a[indice[u], indice[v]] += valor
         if not g.is_directed():
-            a[indice[v], indice[u]] += peso
+            a[indice[v], indice[u]] += valor
     return a
 
 
@@ -370,15 +366,6 @@ def experimento_snowball(g: nx.DiGraph, semente: str, camadas_max: int = 5) -> p
 # ---------------------------------------------------------------------------
 # semana 4: conectividade, distâncias e centralidades
 # ---------------------------------------------------------------------------
-
-def maior_componente(g: nx.Graph) -> set:
-    """Conjunto de nós do maior componente (WCC para DirGraph: usa o grafo sem direção)."""
-    if g.is_directed():
-        componentes = list(nx.weakly_connected_components(g))
-    else:
-        componentes = list(nx.connected_components(g))
-    return max(componentes, key=len)
-
 
 def maior_scc(g: nx.DiGraph) -> set:
     """Conjunto de nós do maior componente fortemente conectado."""
@@ -521,48 +508,6 @@ def tabela_intermediacao_variantes(g: nx.DiGraph) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 # semana 5: decomposição em núcleos
 # ---------------------------------------------------------------------------
-
-def k_core_manual(g: nx.Graph, k: int) -> set:
-    """k-core implementado à mão (versão do resumo teórico, seção 17).
-
-    Remove iterativamente todo nó com grau menor que k dentro do subgrafo
-    corrente; o que sobra é o k-core. Custo O(L) com baldes; aqui a fila basta.
-    """
-    sobreviventes = set(g.nodes())
-    graus = {no: g.degree(no) for no in sobreviventes}
-    fila = [no for no in sobreviventes if graus[no] < k]
-    while fila:
-        no = fila.pop()
-        if no not in sobreviventes:
-            continue
-        sobreviventes.remove(no)
-        for vizinho in g[no]:
-            if vizinho in sobreviventes:
-                graus[vizinho] -= 1
-                if graus[vizinho] < k:
-                    fila.append(vizinho)
-    return sobreviventes
-
-
-def core_numbers_manual(g: nx.Graph) -> dict[str, int]:
-    """Coreness (core number) de cada nó, pela definição.
-
-    O core number de v é o maior k tal que v sobrevive ao descascamento do
-    k-core. A versão por definição (aplicar ``k_core_manual`` para k crescente)
-    é mais lenta que o descascamento com baldes, mas é direta e serve de
-    conferência contra ``nx.core_number``.
-    """
-    core = {no: 0 for no in g.nodes()}
-    k = 1
-    while True:
-        sobreviventes = k_core_manual(g, k)
-        if not sobreviventes:
-            break
-        for no in sobreviventes:
-            core[no] = k
-        k += 1
-    return core
-
 
 def tabela_kcore(g: nx.Graph) -> pd.DataFrame:
     """Core number de cada nó, com grau e região, ordenado do miolo para a periferia."""
@@ -756,6 +701,16 @@ def impacto_remocao(g: nx.DiGraph, no: str) -> dict:
     }
 
 
+def _efeito_remocao(h: nx.DiGraph, eficiencia_base: float, wcc_base: int) -> dict:
+    """Efeito imediato de uma remoção: eficiência e maior WCC relativos, e nós isolados."""
+    maior = len(max(nx.weakly_connected_components(h), key=len))
+    return {
+        "eficiencia_relativa": eficiencia_global(h) / eficiencia_base,
+        "maior_wcc_relativo": maior / wcc_base,
+        "nos_isolados": sum(1 for x in h if h.degree(x) == 0),
+    }
+
+
 def curva_remocao_alvo(g: nx.DiGraph, ordem: list[str], k_max: int = 12) -> pd.DataFrame:
     """Curva de robustez sob remoção dos k primeiros da ordem dada (ex.: betweenness)."""
     eficiencia_0 = eficiencia_global(g)
@@ -764,13 +719,7 @@ def curva_remocao_alvo(g: nx.DiGraph, ordem: list[str], k_max: int = 12) -> pd.D
     linhas = [{"k": 0, "eficiencia_relativa": 1.0, "maior_wcc_relativo": 1.0, "nos_isolados": 0}]
     for k, no in enumerate([x for x in ordem if x in g][:k_max], start=1):
         h.remove_node(no)
-        maior = len(max(nx.weakly_connected_components(h), key=len))
-        linhas.append({
-            "k": k,
-            "eficiencia_relativa": eficiencia_global(h) / eficiencia_0,
-            "maior_wcc_relativo": maior / wcc_0,
-            "nos_isolados": sum(1 for x in h if h.degree(x) == 0),
-        })
+        linhas.append({"k": k, **_efeito_remocao(h, eficiencia_0, wcc_0)})
     return pd.DataFrame(linhas)
 
 
@@ -793,8 +742,8 @@ def curva_remocao_aleatoria(
         h = g.copy()
         for k, no in enumerate(ordem[:k_max], start=1):
             h.remove_node(no)
-            maior = len(max(nx.weakly_connected_components(h), key=len))
-            acumulado[k].append((eficiencia_global(h) / eficiencia_0, maior / wcc_0))
+            efeito = _efeito_remocao(h, eficiencia_0, wcc_0)
+            acumulado[k].append((efeito["eficiencia_relativa"], efeito["maior_wcc_relativo"]))
     linhas = []
     for k in range(1, k_max + 1):
         valores = acumulado[k]
@@ -837,35 +786,6 @@ def arestas_criticas(g: nx.DiGraph, k: int = 15) -> pd.DataFrame:
         })
     tabela = pd.DataFrame(linhas).sort_values("intermediacao_aresta", ascending=False).reset_index(drop=True)
     return tabela.head(k)
-
-
-def rotas_alternativas(
-    g: nx.DiGraph,
-    origem: str,
-    destino: str,
-    no_removido: str | None = None,
-    aresta_removida: tuple[str, str] | None = None,
-    k: int = 3,
-) -> list[list[str]]:
-    """Até k caminhos mais curtos simples alternativos entre duas pontas.
-
-    Remove o nó (aeródromo indisponível) ou a aresta (rota suspensa) e lista os
-    caminhos que restam, do menor para o maior. Devolve lista de caminhos (nós).
-    """
-    h = g.copy()
-    if no_removido is not None:
-        h.remove_node(no_removido)
-    if aresta_removida is not None:
-        if h.has_edge(*aresta_removida):
-            h.remove_edge(*aresta_removida)
-    if origem not in h or destino not in h or not nx.has_path(h, origem, destino):
-        return []
-    caminhos = []
-    for caminho in nx.shortest_simple_paths(h, origem, destino):
-        caminhos.append(caminho)
-        if len(caminhos) >= k:
-            break
-    return caminhos
 
 
 def _km_do_caminho(g: nx.DiGraph, caminho: list[str]) -> float:

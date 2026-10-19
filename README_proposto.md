@@ -48,9 +48,9 @@ Quem se beneficia da resposta: quem decide contingência na malha (operador, reg
 | subgrafo/subrede | 2 | `02_rede`, In[5] e In[9] | recortes top-40 / top-30 para visualização |
 | reciprocidade | 2 | `02_rede`, In[2] | 673/987 pares bidirecionais — justifica o dirigido |
 | BFS em camadas | 3 | `02_rede`, In[7] (`malha.camadas_bfs`) | mundo pequeno: 97% dos aeródromos a ≤ 2 saltos de SBGR |
-| núcleo e periferia (BFS) | 3 | `02_rede`, In[7] (`malha.nucleo_periferia_bfs`) | separar quem chega cedo de quem fica na borda |
+| núcleo e periferia (BFS) | 3 | `02_rede`, In[7] (`malha.camadas_bfs`) | separar quem chega cedo de quem fica na borda |
 | grau de entrada e de saída | 3 | `02_rede`, In[3] | condições de partida/chegada usadas na falha |
-| amostragem por bola de neve | 3 | `02_rede`, In[8] (`malha.amostragem_snowball`) | demonstrar o viés de coleta por vizinhança |
+| amostragem por bola de neve | 3 | `02_rede`, In[8] (`malha.experimento_snowball`) | demonstrar o viés de coleta por vizinhança |
 | caminhos mais curtos e distâncias | 4 | `03_analise`, In[3] (`malha.distancia_e_eficiencia`), In[4] | comprimento médio de 2,47 saltos |
 | componentes (WCC/SCC) | 4 | `03_analise`, In[2] (`malha.resumo_componentes`) | malha é 1 WCC; `SBBP` fora do SCC |
 | diâmetro, raio, excentricidade, centro/periferia | 4 | `03_analise`, In[3]–In[4] | pior caso de 5 saltos; periferia de 9 aeródromos |
@@ -59,7 +59,7 @@ Quem se beneficia da resposta: quem decide contingência na malha (operador, reg
 | variantes de custo da intermediação | 4 | `03_analise`, In[7] (`malha.tabela_intermediacao_variantes`) | sensibilidade: saltos × km × frequência |
 | triângulos e clustering | 4 | `03_analise`, In[9] (`malha.tabela_clustering`) | coesão regional (SUL 0,78 × SUDESTE 0,62) |
 | nxviz (circos) | 4 | `02_rede`, In[9] | visão por região do top-30 |
-| k-core, k-shell, core number, degeneracy | 5 | `03_analise`, In[10]–In[12] (`malha.core_numbers_manual`, `malha.tabela_kcore`) | miolo denso de 24 aeródromos; degeneração 18 |
+| k-core, k-shell, core number, degeneracy | 5 | `03_analise`, In[10]–In[12] (`malha.tabela_kcore`; `nx.core_number`/`nx.k_core` no notebook) | miolo denso de 24 aeródromos; degeneração 18 |
 | k-truss | 5 | `03_analise`, In[13] (`malha.tabela_ktuss`) | núcleo coeso (70 nós no k=7) por critério de triângulo |
 | grafo bipartido e matriz de incidência | 6 | `03_analise`, In[14] (`malha.bipartido_aeroporto_empresa`) | quem opera onde (176 aeroportos × 73 empresas) |
 | projeção e Jaccard (empresas) | 6 | `03_analise`, In[14] (`malha.jaccard_empresas`) | pares de aeródromos substitutos operacionais |
@@ -77,20 +77,27 @@ Quem se beneficia da resposta: quem decide contingência na malha (operador, reg
 ```bash
 git clone https://github.com/felipe0x/air-traffic-brazil.git
 cd air-traffic-brazil
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt "nxviz>=0.7.4"   # nxviz: circos da figura 07 (fora do requirements)
-bash scripts/reproduzir.sh                        # executa os 3 notebooks na ordem
+bash scripts/reproduzir.sh
 ```
 
-`scripts/reproduzir.sh` executa `01_dados` → `02_rede` → `03_analise`, regenerando figuras
-(`figuras/`) e tabelas (`resultados/`) com as mesmas versões de biblioteca
-(`requirements.txt`, Python 3.12). Requisitos de dados: `data/2025.csv` já está no
-repositório; `data/aerodromos_coordenadas.csv` e `data/brasil_estados.geojson` também — os
-scripts `scripts/gerar_coordenadas.py` e `scripts/gerar_mapa_base.py` regeneram esses dois
-arquivos a partir das fontes públicas (requer internet apenas para isso).
+Um comando basta. O `scripts/reproduzir.sh` cria o `.venv`, instala as dependências fixadas
+(`requirements.txt`) mais o `nxviz` (usado no circos da figura 07, por isso fora do
+requirements), regenera os auxiliares que estiverem faltando e executa `01_dados` →
+`02_rede` → `03_analise`, sobrescrevendo `figuras/` e `resultados/`.
 
-Para rodar célula a célula: `jupyter lab` e abrir os notebooks na ordem 01 → 02 → 03.
+Requisitos: Python 3.12 e internet (para instalar as bibliotecas e, se os auxiliares
+faltarem, para alcançar as fontes públicas abaixo). O `data/2025.csv` já está no repositório
+e não é baixado.
+
+Para inspecionar o código célula a célula, o ambiente criado pelo comando acima já serve:
+
+```bash
+source .venv/bin/activate
+jupyter lab        # abrir 01_dados → 02_rede → 03_analise, nessa ordem
+```
+
+Sem usar o script: `python3 -m venv .venv`, `source .venv/bin/activate`,
+`pip install -r requirements.txt "nxviz>=0.7.4"` e então `jupyter lab`.
 
 ## Resultados
 

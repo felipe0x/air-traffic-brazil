@@ -113,8 +113,9 @@ usavam Manaus perde alternativa. Guarulhos, o maior em passageiros, custa 1,8%: 
 alternativas. **Na rede, crítico = único, não maior.**
 
 **Rotas críticas.** O corredor `SBKP↔SBEG` lidera a intermediação de aresta nas duas
-direções; quase todas as 15 rotas do topo têm alternativa de +1 salto, mas duas relações
-direcionais perdem o caminho por completo (`SBEG→SBUY`, `SBTT→SBEG`).
+direções; 10 das 15 rotas do topo envolvem Manaus, e as outras 5 são ligações de Campinas
+com Belém, Recife e Confins. Doze das 15 rotas têm alternativa de +1 salto, uma de +2 e
+duas relações direcionais perdem o caminho por completo (`SBEG→SBUY`, `SBTT→SBEG`).
 
 **Estrutura.** A malha doméstica de 2025 é um único componente fraco com 176 aeródromos e
 1.660 rotas (densidade 0,054) e um núcleo denso de 24 aeródromos no k-core k=18. Fora do

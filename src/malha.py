@@ -81,10 +81,10 @@ def recortar(bruto: pd.DataFrame) -> pd.DataFrame:
 
 
 def _resumo_recorte(d: pd.DataFrame) -> dict:
-    """Linhas, nós e rotas distintas de um recorte."""
+    """Nós e rotas distintas de um recorte."""
     pares = d.groupby([COL_ORIGEM, COL_DESTINO]).size()
     nos = set(d[COL_ORIGEM]) | set(d[COL_DESTINO])
-    return {"linhas": len(d), "nos": len(nos), "rotas": len(pares)}
+    return {"nos": len(nos), "rotas": len(pares)}
 
 
 def tabela_decisoes_recorte(bruto: pd.DataFrame) -> pd.DataFrame:
@@ -211,19 +211,17 @@ def posicoes(g: nx.Graph) -> dict[str, tuple[float, float]]:
     return {no: (dados["lon"], dados["lat"]) for no, dados in g.nodes(data=True)}
 
 
-def fundo_mapa(eixo, cor: str = "#f2f2f2", borda: str = "#cccccc") -> bool:
-    """Desenha o contorno dos estados brasileiros no eixo (cópia local do GeoJSON).
+def fundo_mapa(eixo, cor: str = "#f2f2f2", borda: str = "#cccccc") -> None:
+    """Desenha o contorno dos estados brasileiros no eixo, se o GeoJSON existir.
 
-    Devolve False se o arquivo ``data/brasil_estados.geojson`` não existir: os
-    mapas continuam válidos, só ficam sem o contorno. Gerar com
-    ``python scripts/gerar_mapa_base.py``.
+    Se ``data/brasil_estados.geojson`` faltar, o mapa continua válido, só fica
+    sem o contorno. Gerar com ``python scripts/gerar_mapa_base.py``.
     """
     caminho = caminho_data() / "brasil_estados.geojson"
     if not caminho.exists():
-        return False
+        return
     estados = gpd.read_file(caminho)
     estados.plot(ax=eixo, color=cor, edgecolor=borda, linewidth=0.6, zorder=0)
-    return True
 
 
 def construir_digrafo(rotas: pd.DataFrame) -> nx.DiGraph:
@@ -297,8 +295,6 @@ def tabela_graus(g: nx.DiGraph) -> pd.DataFrame:
             "grau_entrada": entrada,
             "grau_saida": saida,
             "grau_total": entrada + saida,
-            "decolagens_entrada": g.in_degree(no, weight="decolagens"),
-            "decolagens_saida": g.out_degree(no, weight="decolagens"),
             "passageiros_entrada": g.in_degree(no, weight="passageiros"),
             "passageiros_saida": g.out_degree(no, weight="passageiros"),
         })

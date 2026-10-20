@@ -35,7 +35,7 @@ Criticidade não é volume. Um aeroporto pequeno pode ser o único caminho de um
 - **Nó:** aeródromo, identificado pela sigla ICAO (ex. `SBGR`), com nome, UF e região.
 - **Aresta:** rota doméstica origem → destino observada na janela de 2025.
 - **Direção:** dirigida. Os volumes de ida e volta diferem: dos 987 pares ligados, 314 têm rota em um sentido só.
-- **Peso:** `DECOLAGENS` (oferta) e `PASSAGEIROS PAGOS` (demanda) como atributos distintos; cada cálculo declara qual usa.
+- **Peso:** `DECOLAGENS` e `PASSAGEIROS PAGOS` como atributos distintos; cada cálculo declara qual dos dois usa.
 - **Fica de fora:** malha internacional, voos com escala (o dado é ponto a ponto), frequência por dia/hora, tipo de aeronave, preço, carga e capacidade operacional do aeroporto.
 - **Hipóteses:** janela anual agregada; ausência de aresta = rota inexistente na janela; `DECOLAGENS > 0` define rota ativa.
 - **Auxiliares reprodutíveis:** coordenadas dos aeródromos via [OurAirports](https://davidmegginson.github.io/ourairports-data/) (176/176, `scripts/gerar_coordenadas.py` → `data/aerodromos_coordenadas.csv`) e contorno dos estados via *click_that_hood*/IBGE simplificado (`scripts/gerar_mapa_base.py` → `data/brasil_estados.geojson`).
@@ -47,29 +47,21 @@ Criticidade não é volume. Um aeroporto pequeno pode ser o único caminho de um
 | digrafo e atributos de nó/aresta | 2 | In[2] (`malha.construir_digrafo`) | modelar rota com direção e pesos |
 | densidade | 2 | In[5] (`malha.metricas_basicas`) | mostrar que a malha é esparsa (0,054) |
 | grau e distribuição de grau | 2 | In[6] (`malha.tabela_graus`, `malha.ccdf`) | cauda longa; média não descreve o aeródromo |
-| matriz de adjacência | 2 | In[7] (`malha.matriz_adjacencia`) | ver a topologia inteira do top-40 (massa nos hubs) |
-| subgrafo/subrede | 2 | In[7] e In[14] | recorte top-40 por grau e miolo do k-core |
 | reciprocidade | 2 | In[5] | 673/987 pares bidirecionais justificam o dirigido |
-| BFS em camadas | 3 | In[8] (`malha.camadas_bfs`) | mundo pequeno: 97% dos aeródromos a ≤ 2 saltos de SBGR |
-| núcleo e periferia (BFS) | 3 | In[8] (`malha.camadas_bfs`) | separar quem chega cedo de quem fica na borda |
+| BFS em camadas | 3 | In[7] (`malha.camadas_bfs`) | mundo pequeno: 97% a ≤ 2 saltos de SBGR; núcleo × periferia |
 | grau de entrada e de saída | 3 | In[6] (`malha.tabela_graus`) | condições de partida/chegada usadas na falha |
-| amostragem por bola de neve | 3 | In[9] (`malha.experimento_snowball`) | demonstrar o viés de coleta por vizinhança |
-| caminhos mais curtos e distâncias | 4 | In[10] (`malha.distancia_e_eficiencia`), In[23] | comprimento médio de 2,47 saltos |
-| componentes (WCC/SCC) | 4 | In[10] (`malha.resumo_componentes`) | malha é 1 WCC; `SBBP` fora do SCC |
-| diâmetro, raio, centro/periferia | 4 | In[10] (`malha.distancia_e_eficiencia`) | pior caso de 5 saltos; periferia de 9 aeródromos |
-| eficiência global | 4 | In[10] e In[20]–In[21] (`malha.eficiencia_global`) | régua da robustez (pune desconexão) |
-| centralidades: grau, proximidade, intermediação, autovetor | 4 | In[11] (`malha.tabela_centralidades`), In[12] | achar os gargalos (SBKP, SBCF, SBEG) |
-| variantes de custo da intermediação | 4 | In[12] (`malha.tabela_intermediacao_variantes`) | sensibilidade: saltos × km × frequência |
-| triângulos e clustering | 4 | In[13] (`malha.tabela_clustering`) | coesão regional (SUL 0,78 × SUDESTE 0,62) |
-| k-core, k-shell, core number, degeneracy | 5 | In[14] (`malha.tabela_kcore`; `nx.core_number`/`nx.k_core`) | miolo denso de 24 aeródromos; degeneração 18 |
-| k-truss | 5 | In[15] (`malha.tabela_ktuss`) | núcleo coeso (70 nós no k=7) por critério de triângulo |
-| grafo bipartido e matriz de incidência | 6 | In[16] (`malha.bipartido_aeroporto_empresa`) | quem opera onde (176 aeroportos × 73 empresas) |
-| projeção e Jaccard (empresas) | 6 | In[16] (`malha.jaccard_empresas`) | pares de aeródromos substitutos operacionais |
-| Jaccard de vizinhança | 6 | In[17] (`malha.jaccard_vizinhanca`) | redundância de destinos (SBGL–SBGR, 0,73) |
-| esqueleto por limiar | 6 | In[18] (`malha.esqueleto_limiar`) | tronco que carrega 80% das decolagens em 283 rotas |
-| articulações e pontes (complementar) | 4–5 | In[19] (`nx.articulation_points`, `nx.bridges`) | 16 dos 20 hubs são pontos de corte da projeção |
-| remoção de nó e curvas de falha | 4–5 | In[20]–In[21] (`malha.impacto_remocao`, `malha.curva_remocao_*`) | medir o estrago (alvo × aleatória) |
-| arestas críticas e caminhos alternativos | 4–6 | In[22]–In[23] (`malha.arestas_criticas`, `malha.pares_afetados`) | responder "quais rotas restam" |
+| caminhos mais curtos e distâncias | 4 | In[8] (`malha.distancia_e_eficiencia`), In[18] (`malha.pares_afetados`) | comprimento médio de 2,47 saltos; rota que resta após a falha |
+| componentes (WCC/SCC) | 4 | In[8] (`malha.resumo_componentes`) | malha é 1 WCC; `SBBP` fora do SCC |
+| diâmetro, raio, centro/periferia | 4 | In[8] (`malha.distancia_e_eficiencia`) | pior caso de 5 saltos; periferia de 9 aeródromos |
+| eficiência global | 4 | In[8] e In[15]–In[16] (`malha.eficiencia_global`) | régua da robustez (pune desconexão) |
+| centralidades: grau, proximidade, intermediação, autovetor | 4 | In[9] (`malha.tabela_centralidades`), In[10] | achar os gargalos (SBKP, SBCF, SBEG) |
+| variantes de custo da intermediação | 4 | In[10] (`malha.tabela_intermediacao_variantes`) | sensibilidade: saltos × km × frequência |
+| k-core, core number e degeneracy | 5 | In[11] (`malha.tabela_kcore`; `nx.core_number`/`nx.k_core`) | miolo denso de 24 aeródromos; degeneração 18 |
+| Jaccard de vizinhança | 6 | In[12] (`malha.jaccard_vizinhanca`) | redundância de destinos (SBGL–SBGR, 0,73) |
+| esqueleto por limiar | 6 | In[13] (`malha.esqueleto_limiar`) | tronco que carrega 80% das decolagens em 283 rotas |
+| articulações e pontes (complementar) | 4–5 | In[14] (`nx.articulation_points`, `nx.bridges`) | 16 dos 20 hubs são pontos de corte da projeção |
+| remoção de nó e curvas de falha | 4–5 | In[15]–In[16] (`malha.impacto_remocao`, `malha.curva_remocao_*`) | medir o estrago (alvo × aleatória) |
+| arestas críticas e caminhos alternativos | 4–6 | In[17]–In[18] (`malha.arestas_criticas`, `malha.pares_afetados`) | responder "quais rotas restam" |
 
 > Cada linha corresponde a conteúdo nomeado no código; `In[k]` é a célula executada em
 > `notebooks/apresentacao.ipynb`. A mesma tabela está condensada no vídeo.
@@ -84,8 +76,8 @@ Criticidade não é volume. Um aeroporto pequeno pode ser o único caminho de um
 ├── scripts/gerar_coordenadas.py   # auxiliar: coordenadas dos aeródromos (OurAirports)
 ├── scripts/gerar_mapa_base.py     # auxiliar: contorno dos estados (GeoJSON)
 ├── data/                          # 2025.csv da ANAC + auxiliares versionados
-├── figuras/                       # 01 a 10, geradas pelo notebook
-└── resultados/                    # 15 CSVs gerados pelo notebook
+├── figuras/                       # 01 a 09, geradas pelo notebook
+└── resultados/                    # 14 CSVs gerados pelo notebook
 ```
 
 ## Como executar
@@ -137,20 +129,19 @@ custam 7,5%: a malha é tolerante a falha aleatória e sensível a falha escolhi
 
 **Artefatos reconhecidos.**
 
-- **Amostragem.** A base é o censo de 2025, não uma amostra; o experimento de bola de neve
-  (seção 3 do notebook) mede o viés de coleta por vizinhança e não altera os números acima.
-- **Projeção.** Clustering (SUL 0,778 · SUDESTE 0,622), k-core de 24 aeródromos, k-truss, 18
-  articulações e 22 pontes saem da projeção não dirigida; nela um ciclo dirigido de 3 nós vira
-  triângulo.
+- **Amostragem.** A base é o censo de 2025, não uma amostra; os números valem para as rotas
+  reportadas, não para uma estimativa do universo.
+- **Projeção.** O k-core de 24 aeródromos, as 18 articulações e as 22 pontes saem da projeção
+  não dirigida; nela um ciclo dirigido de 3 nós vira triângulo.
 - **Dados faltantes.** Ausência de aresta é rota não reportada na janela, não isolamento real.
   `SBBP` é o único nó fora do SCC porque tem 1 decolagem e 0 passageiro pago no ano (voo de
   posicionamento). `DISTÂNCIA VOADA (KM)`, com 622 nulos nas linhas Brasil–Brasil, não entra nos
   cálculos; a distância vem de haversine.
 - **Medida sem peso.** `SBJD` (Jundiaí) aparece no top-10 de intermediação com 0 passageiro pago,
-  voos não comerciais como atalho; nós de grau 1–2 têm clustering e Jaccard 1 por construção.
+  voos não comerciais como atalho; nós de grau 1–2 têm Jaccard 1 por construção.
 
 **Figuras e tabelas.** A análise completa está em `notebooks/apresentacao.ipynb`
-(executado), com as figuras numeradas de 01 a 10 em `figuras/` e as tabelas em
+(executado), com as figuras numeradas de 01 a 09 em `figuras/` e as tabelas em
 `resultados/`, com destaque para `ranking_criticidade.csv` (síntese de criticidade por
 aeródromo), `arestas_criticas.csv`, `rotas_alternativas_SBKP.csv` e
 `rotas_alternativas_SBEG.csv` (os pares afetados e o caminho que resta em cada caso).
@@ -165,9 +156,9 @@ aeródromo), `arestas_criticas.csv`, `rotas_alternativas_SBKP.csv` e
 3. **Conexões de passageiros.** Não mapeia a bilhetagem de ponta a ponta (*origin–destination
    true passenger itineraries*): quem faz escala conta como dois trechos.
 
-**Próximos passos:** repetir a análise por mês; falha por companhia aérea (o bipartido está
-pronto); cruzar com capacidade de pista/terminal (conectividade ≠ capacidade); comparar
-2024 × 2025.
+**Próximos passos:** repetir a análise por mês; falha por companhia aérea (exige cruzar a
+operação por empresa, que a agregação por rota descarta); cruzar com capacidade de
+pista/terminal (conectividade ≠ capacidade); comparar 2024 × 2025.
 
 ## Referências
 

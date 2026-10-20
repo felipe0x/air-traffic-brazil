@@ -40,8 +40,8 @@ Colunas usadas na análise:
 | `AEROPORTO DE {ORIGEM,DESTINO} (NOME/UF/REGIÃO)` | atributos de nó |
 | `AEROPORTO DE {ORIGEM,DESTINO} (PAÍS)` | filtro de voo doméstico |
 | `NATUREZA` | classificação ANAC de doméstico/internacional. **Não confiável**, ver abaixo |
-| `DECOLAGENS` | peso de oferta |
-| `PASSAGEIROS PAGOS` | peso de demanda |
+| `DECOLAGENS` | peso das rotas (quantidade de decolagens) |
+| `PASSAGEIROS PAGOS` | volume de passageiros pagos |
 
 ## Limpeza aplicada
 

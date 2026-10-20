@@ -14,7 +14,6 @@ Convenções:
 
 from __future__ import annotations
 
-import itertools
 import math
 import random
 from pathlib import Path
@@ -236,7 +235,7 @@ def grafo_nao_dirigido(g: nx.DiGraph) -> nx.Graph:
     """Projeção não dirigida: soma os volumes das duas direções de cada par.
 
     Necessária para as ferramentas que só existem em grafo não dirigido
-    (triângulos, clustering, k-core, k-truss, pontes, articulações). Limitação
+    (k-core, pontes, articulações). Limitação
     declarada: um ciclo dirigido 1->2->3->1 vira triângulo na projeção.
     """
     h = nx.Graph()
@@ -301,56 +300,13 @@ def ccdf(valores: pd.Series | np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return x, np.asarray(y)
 
 
-def matriz_adjacencia(g: nx.Graph, ordem: list) -> np.ndarray:
-    """Matriz de adjacência ponderada por ``decolagens``, na ordem de nós dada.
-
-    Em grafo não dirigido a matriz é espelhada. Arestas com ponta fora de
-    ``ordem`` são ignoradas; a matriz serve para ler um recorte da topologia,
-    não o grafo inteiro.
-    """
-    indice = {no: i for i, no in enumerate(ordem)}
-    a = np.zeros((len(ordem), len(ordem)))
-    for u, v, dados in g.edges(data=True):
-        if u not in indice or v not in indice:
-            continue
-        a[indice[u], indice[v]] += dados["decolagens"]
-        if not g.is_directed():
-            a[indice[v], indice[u]] += dados["decolagens"]
-    return a
-
-
 # ---------------------------------------------------------------------------
-# semana 3: travessia e amostragem
+# semana 3: travessia
 # ---------------------------------------------------------------------------
 
 def camadas_bfs(g: nx.Graph, semente: str) -> dict[str, int]:
     """Nível de cada nó alcançável a partir da semente, em número de arestas (BFS)."""
     return dict(nx.single_source_shortest_path_length(g, semente))
-
-
-def experimento_snowball(g: nx.DiGraph, semente: str, camadas_max: int = 5) -> pd.DataFrame:
-    """Efeito da amostragem por bola de neve na estrutura da rede.
-
-    Simula a coleta por vizinhança: em cada camada só se enxerga o subgrafo
-    induzido pelos nós alcançados até ali. Compara tamanho, densidade, grau
-    médio e clustering da amostra com a rede completa.
-    """
-    niveis = camadas_bfs(g, semente)
-    linhas = []
-    for camada in range(1, camadas_max + 1):
-        amostra = [no for no, nivel in niveis.items() if nivel <= camada]
-        sub = g.subgraph(amostra)
-        h = grafo_nao_dirigido(sub)
-        linhas.append({
-            "camada": camada,
-            "nos": sub.number_of_nodes(),
-            "arestas": sub.number_of_edges(),
-            "fracao_nos": sub.number_of_nodes() / g.number_of_nodes(),
-            "densidade": nx.density(sub),
-            "grau_medio": np.mean([d for _, d in sub.degree()]),
-            "clustering_medio": nx.average_clustering(h),
-        })
-    return pd.DataFrame(linhas)
 
 
 # ---------------------------------------------------------------------------
@@ -414,20 +370,6 @@ def distancia_e_eficiencia(g: nx.DiGraph) -> dict:
         "periferia_scc": sorted(nx.periphery(sub)),
         "eficiencia_global": eficiencia_global(g),
     }
-
-
-def tabela_clustering(g: nx.Graph) -> pd.DataFrame:
-    """Triângulos e coeficiente de agrupamento por aeródromo (grafo não dirigido)."""
-    triangulos = nx.triangles(g)
-    clustering = nx.clustering(g)
-    linhas = [{
-        "icao": no,
-        "grau": g.degree(no),
-        "triangulos": triangulos[no],
-        "clustering": clustering[no],
-        "regiao": g.nodes[no].get("regiao", ""),
-    } for no in g.nodes()]
-    return pd.DataFrame(linhas).sort_values(["clustering", "grau"], ascending=False).reset_index(drop=True)
 
 
 def tabela_centralidades(g: nx.DiGraph) -> pd.DataFrame:
@@ -514,76 +456,9 @@ def tabela_kcore(g: nx.Graph) -> pd.DataFrame:
     )
 
 
-def tabela_ktuss(g: nx.Graph, ks: range = range(3, 8)) -> pd.DataFrame:
-    """Tamanho do k-truss: subgrafo em que toda aresta participa de >= k-2 triângulos."""
-    linhas = []
-    for k in ks:
-        try:
-            truss = nx.k_truss(g, k)
-        except nx.NetworkXError:
-            continue
-        linhas.append({"k": k, "nos": truss.number_of_nodes(), "arestas": truss.number_of_edges()})
-    return pd.DataFrame(linhas)
-
-
 # ---------------------------------------------------------------------------
-# semana 6: bipartido, projeção, Jaccard e esqueleto por limiar
+# semana 6: Jaccard e esqueleto por limiar
 # ---------------------------------------------------------------------------
-
-def bipartido_aeroporto_empresa(d: pd.DataFrame) -> nx.Graph:
-    """Rede bipartida aeroporto x empresa aérea.
-
-    Ligação existe quando a empresa operou a rota de/para o aeroporto na janela;
-    o peso é o total de decolagens. A projeção para aeroportos (adiante) mede
-    similaridade operacional: dois aeródromos ligados às mesmas empresas.
-    """
-    d = _renomear_colunas(d)
-    b = nx.Graph()
-    for aeroporto in set(d["origem"]) | set(d["destino"]):
-        b.add_node(("aeroporto", aeroporto))
-    for empresa in set(d["empresa"]):
-        b.add_node(("empresa", empresa))
-    for linha in d.itertuples():
-        for lado in (linha.origem, linha.destino):
-            no_aero = ("aeroporto", lado)
-            no_emp = ("empresa", linha.empresa)
-            if b.has_edge(no_aero, no_emp):
-                b[no_aero][no_emp]["decolagens"] += linha.DECOLAGENS
-            else:
-                b.add_edge(no_aero, no_emp, decolagens=linha.DECOLAGENS)
-    return b
-
-
-def jaccard_empresas(b: nx.Graph, minimo_empresas: int = 2) -> pd.DataFrame:
-    """Projeção do bipartido com peso de Jaccard.
-
-    J(a,b) = |E(a) ∩ E(b)| / |E(a) ∪ E(b)|, onde E(x) é o conjunto de empresas
-    do aeroporto x. Contagem bruta devolveria pares que só aparecem juntos
-    porque ambos têm muitas empresas; o Jaccard normaliza e revela os pares
-    exclusivos, candidatos a substitutos operacionais.
-    """
-    empresas = {
-        aeroporto: {v for _, v in b.neighbors(("aeroporto", aeroporto))}
-        for _, aeroporto in (n for n in b.nodes if n[0] == "aeroporto")
-    }
-    linhas = []
-    for a, c in itertools.combinations(sorted(empresas), 2):
-        e_a, e_c = empresas[a], empresas[c]
-        uniao = e_a | e_c
-        if len(uniao) == 0:
-            continue
-        intersecao = e_a & e_c
-        if len(intersecao) < minimo_empresas:
-            continue
-        linhas.append({
-            "aeroporto_a": a,
-            "aeroporto_b": c,
-            "empresas_comuns": len(intersecao),
-            "empresas_uniao": len(uniao),
-            "jaccard": len(intersecao) / len(uniao),
-        })
-    return pd.DataFrame(linhas).sort_values("jaccard", ascending=False).reset_index(drop=True)
-
 
 def jaccard_vizinhanca(g: nx.Graph) -> pd.DataFrame:
     """Similaridade de Jaccard entre os vizinhos das duas pontas de cada aresta.

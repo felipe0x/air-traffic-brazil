@@ -119,9 +119,9 @@ usavam Manaus perde alternativa. Guarulhos, o maior em passageiros, custa 1,8%: 
 alternativas. **Na rede, crítico = único, não maior.**
 
 **Rotas críticas.** O corredor `SBKP↔SBEG` lidera a intermediação de aresta nas duas
-direções; nenhuma das 15 rotas mais críticas é ponte da projeção (o tronco tem alternativa
-de +1 salto), mas duas relações direcionais perdem o caminho por completo (`SBEG→SBUY`,
-`SBTT→SBEG`). As 22 pontes existentes ligam aeródromos pequenos a um único hub.
+direções; nenhuma das 15 rotas mais críticas é ponte da projeção (quase todas têm
+alternativa de +1 salto), mas duas relações direcionais perdem o caminho por completo
+(`SBEG→SBUY`, `SBTT→SBEG`). As 22 pontes existentes ligam aeródromos pequenos a um único hub.
 
 **Estrutura.** A malha doméstica de 2025 é um único componente fraco com 176 aeródromos e
 1.660 rotas (densidade 0,054) e um núcleo denso de 24 aeródromos no k-core k=18. O tronco
@@ -136,11 +136,11 @@ custam 7,5%: a malha é tolerante a falha aleatória e sensível a falha escolhi
 - **Projeção.** O k-core de 24 aeródromos, as 18 articulações e as 22 pontes saem da projeção
   não dirigida; nela um ciclo dirigido de 3 nós vira triângulo.
 - **Dados faltantes.** Ausência de aresta é rota não reportada na janela, não isolamento real.
-  `SBBP` é o único nó fora do SCC porque tem 1 decolagem e 0 passageiro pago no ano (voo de
-  posicionamento). `DISTÂNCIA VOADA (KM)`, com 622 nulos nas linhas Brasil–Brasil, não entra nos
-  cálculos; a distância vem de haversine.
-- **Medida sem peso.** `SBJD` (Jundiaí) aparece no top-10 de intermediação com 0 passageiro pago,
-  voos não comerciais como atalho; nós de grau 1–2 têm Jaccard 1 por construção.
+  `SBBP` é o único nó fora do SCC porque tem 1 decolagem e 0 passageiro pago no ano.
+  `DISTÂNCIA VOADA (KM)`, com 622 nulos nas linhas Brasil–Brasil, não entra nos cálculos; a
+  distância vem de haversine.
+- **Medida sem peso.** `SBJD` (Jundiaí) aparece no top-10 de intermediação com 0 passageiro pago:
+  a centralidade conta passagem topológica, não demanda.
 
 **Figuras e tabelas.** A análise completa está em `notebooks/apresentacao.ipynb`
 (executado), com as figuras numeradas de 01 a 09 em `figuras/` e as tabelas em

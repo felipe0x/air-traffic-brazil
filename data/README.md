@@ -58,5 +58,5 @@ Colunas usadas na análise:
    `PASSAGEIROS PAGOS`, preservando nome, UF e região dos dois aeródromos.
 
 Resultado do recorte: **176 nós, 1660 arestas dirigidas, densidade 0,0539**.
-`SBBP` (Araxá) é o único aeródromo **sem rota de entrada** (`in_degree == 0`, por isso é o
-único fora do componente fortemente conexo); nenhum aeródromo fica sem rota de saída.
+`SBBP` (Bragança Paulista) é o único aeródromo **sem rota de entrada** (`in_degree == 0`, por
+isso é o único fora do componente fortemente conexo); nenhum aeródromo fica sem rota de saída.

@@ -4,4 +4,4 @@ Malha doméstica,tudo × só origem BR × BR/BR,origem e destino no Brasil (PAÍ
 Campo de domesticidade,PAÍS das pontas × NATUREZA (ANAC),PAÍS das pontas,NATUREZA marca rotas internas como INTERNACIONAL,diferença de 6 rotas
 Self-loops,manter × remover origem = destino,remover,aeroporto não é rota para si mesmo,1.744 -> 1.660 arestas
 Tipo de voo,todos os grupos × só REGULAR,todos os grupos,a rota existiu; só regular derrubaria 15 aeródromos,"3,5% das decolagens"
-Rota ativa,DECOLAGENS > 0 × PASSAGEIROS > 0,DECOLAGENS > 0,mede decolagens (o voo aconteceu),37.988 -> 22.128 linhas
+Rota ativa,DECOLAGENS > 0 × PASSAGEIROS > 0,DECOLAGENS > 0,mede decolagens (o voo aconteceu),37.988 -> 34.157 linhas ativas

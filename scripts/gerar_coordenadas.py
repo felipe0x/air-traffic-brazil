@@ -28,13 +28,14 @@ SAIDA = Path(__file__).resolve().parent.parent / "data" / "aerodromos_coordenada
 
 
 def siglas_usadas() -> set[str]:
-    """Siglas ICAO que aparecem no recorte canônico do data/2025.csv."""
+    """Siglas ICAO que aparecem no recorte do projeto em data/2025.csv."""
     raiz = SAIDA.parent.parent
     bruto = pd.read_csv(raiz / "data" / "2025.csv", sep=";", encoding="latin1", low_memory=False)
     origem = "AEROPORTO DE ORIGEM (SIGLA)"
     destino = "AEROPORTO DE DESTINO (SIGLA)"
     domestico = (
-        (bruto["AEROPORTO DE ORIGEM (PAÍS)"] == "BRASIL")
+        (bruto["ANO"] == 2025)
+        & (bruto["AEROPORTO DE ORIGEM (PAÍS)"] == "BRASIL")
         & (bruto["AEROPORTO DE DESTINO (PAÍS)"] == "BRASIL")
         & (bruto["DECOLAGENS"] > 0)
         & (bruto[origem] != bruto[destino])
@@ -45,7 +46,7 @@ def siglas_usadas() -> set[str]:
 
 def main() -> None:
     siglas = siglas_usadas()
-    print(f"aeródromos no recorte canônico: {len(siglas)}")
+    print(f"aeródromos no recorte do projeto: {len(siglas)}")
 
     with urlopen(URL, timeout=120) as resposta:
         import io

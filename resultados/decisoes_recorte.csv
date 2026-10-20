@@ -1,7 +1,7 @@
-decisao,alternativas,escolha,porque,efeito
-Janela temporal,ano de 2025 × mês × semestre,ano de 2025 (12 meses),conectividade estrutural; mês único perde 18 aeródromos,176 nós e 1.660 rotas
-Malha doméstica,tudo × só origem BR × BR/BR,origem e destino no Brasil (PAÍS),a pergunta é doméstica,396 -> 176 nós
-Campo de domesticidade,PAÍS das pontas × NATUREZA (ANAC),PAÍS das pontas,NATUREZA marca rotas internas como INTERNACIONAL,diferença de 6 rotas
-Self-loops,manter × remover origem = destino,remover,aeroporto não é rota para si mesmo,1.744 -> 1.660 arestas
-Tipo de voo,todos os grupos × só REGULAR,todos os grupos,a rota existiu; só regular derrubaria 15 aeródromos,"3,5% das decolagens"
-Rota ativa,DECOLAGENS > 0 × PASSAGEIROS > 0,DECOLAGENS > 0,mede decolagens (o voo aconteceu),37.988 -> 34.157 linhas ativas
+decisao,escolha,porque,alternativa,efeito
+Janela e agregação,"ano de 2025, por par origem-destino",reduz sazonalidade; par preserva conectividade,só janeiro,"158 nós, 1.039 rotas"
+Malha doméstica,origem e destino no Brasil,a pergunta é o isolamento nacional,incluir internacional,"396 nós, 2.912 rotas"
+Campo de domesticidade,PAÍS das duas pontas,critério direto; NATUREZA erra 671 linhas,NATUREZA,"176 nós, 1.654 rotas"
+Rota ativa,DECOLAGENS > 0,"operação efetiva, não venda de assento",PASSAGEIROS > 0,"161 nós, 1.263 rotas"
+Self-loops,remover origem = destino,self-loop não altera alcance nem caminho,manter,"176 nós, 1.744 rotas"
+Tipo de voo,todos os grupos,"malha operada, não só oferta regular",só REGULAR,"161 nós, 1.299 rotas"

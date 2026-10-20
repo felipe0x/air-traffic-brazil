@@ -7,15 +7,14 @@ O notebook ``apresentacao`` chama essas funções.
 Convenções:
 - nó = aeródromo (sigla ICAO); aresta dirigida = rota doméstica origem -> destino;
 - atributos de aresta: ``decolagens``, ``passageiros`` e ``distancia_km``
-  (haversine, usada como custo nas variantes de intermediação);
-- recorte canônico: PAÍS == BRASIL nas duas pontas, ``DECOLAGENS > 0``,
+  (haversine);
+- recorte do projeto: PAÍS == BRASIL nas duas pontas, ``DECOLAGENS > 0``,
   sem self-loops, agregado por par.
 """
 
 from __future__ import annotations
 
 import math
-import random
 from pathlib import Path
 
 import geopandas as gpd
@@ -41,7 +40,7 @@ def caminho_data() -> Path:
 
 
 # ---------------------------------------------------------------------------
-# dados: leitura, recorte e alternativas
+# dados: leitura e recorte
 # ---------------------------------------------------------------------------
 
 COL_ORIGEM = "AEROPORTO DE ORIGEM (SIGLA)"
@@ -58,80 +57,97 @@ def carregar_bruto() -> pd.DataFrame:
     )
 
 
-def recortar(
-    bruto: pd.DataFrame,
-    pais: str | None = "BRASIL",
-    somente_origem: bool = False,
-    decolagens_maior_que_zero: bool = True,
-    sem_self_loop: bool = True,
-    natureza: str | None = None,
-    grupo: str | None = None,
-    meses: list[int] | None = None,
-) -> pd.DataFrame:
-    """Aplica um recorte qualquer sobre o arquivo bruto (linha = combo empresa/mês/rota).
+def _mascara_domestica(bruto: pd.DataFrame) -> pd.Series:
+    """Linhas de 2025, domésticas, com decolagem e sem self-loop."""
+    return (
+        (bruto["ANO"] == 2025)
+        & (bruto["AEROPORTO DE ORIGEM (PAÍS)"] == "BRASIL")
+        & (bruto["AEROPORTO DE DESTINO (PAÍS)"] == "BRASIL")
+        & (bruto["DECOLAGENS"] > 0)
+        & (bruto[COL_ORIGEM] != bruto[COL_DESTINO])
+    )
 
-    Cada parâmetro é uma decisão de modelagem que o notebook ``apresentacao``
-    compara: ``pais`` filtra as pontas domésticas, ``natureza`` usa o campo
-    oficial da ANAC, ``grupo`` separa voo regular, ``meses`` restringe a janela.
+
+def recortar(bruto: pd.DataFrame) -> pd.DataFrame:
+    """Aplica o recorte do projeto ao arquivo bruto da ANAC.
+
+    A pergunta é sobre a malha doméstica e o efeito de uma interrupção, então
+    entram as linhas de 2025 com origem e destino no Brasil, pelo menos uma
+    decolagem e origem diferente do destino. O campo ``NATUREZA`` não é usado
+    porque classifica linhas domésticas como internacionais; ``PAÍS`` é o
+    critério direto. A agregação por par fica em :func:`agregar_rotas`.
     """
-    d = bruto
-    if pais is not None:
-        d = d[d["AEROPORTO DE ORIGEM (PAÍS)"] == pais]
-        if not somente_origem:
-            d = d[d["AEROPORTO DE DESTINO (PAÍS)"] == pais]
-    if decolagens_maior_que_zero:
-        d = d[d["DECOLAGENS"] > 0]
-    if sem_self_loop:
-        d = d[d[COL_ORIGEM] != d[COL_DESTINO]]
-    if natureza is not None:
-        d = d[d["NATUREZA"] == natureza]
-    if grupo is not None:
-        d = d[d["GRUPO DE VOO"] == grupo]
-    if meses is not None:
-        d = d[d["MÊS"].isin(meses)]
-    return d.copy()
+    return bruto[_mascara_domestica(bruto)].copy()
 
 
 def _resumo_recorte(d: pd.DataFrame) -> dict:
-    """Nós, arestas, densidade e volume de um recorte (arestas = pares distintos)."""
+    """Linhas, nós e rotas distintas de um recorte."""
     pares = d.groupby([COL_ORIGEM, COL_DESTINO]).size()
-    nos = sorted(set(d[COL_ORIGEM]) | set(d[COL_DESTINO]))
-    n, l = len(nos), len(pares)
-    return {
-        "linhas": len(d),
-        "nos": n,
-        "arestas": l,
-        "densidade": l / (n * (n - 1)) if n > 1 else float("nan"),
-        "decolagens": int(d["DECOLAGENS"].sum()),
-        "passageiros": int(d["PASSAGEIROS PAGOS"].sum()),
-    }
+    nos = set(d[COL_ORIGEM]) | set(d[COL_DESTINO])
+    return {"linhas": len(d), "nos": len(nos), "rotas": len(pares)}
 
 
-def tabela_alternativas_recorte(bruto: pd.DataFrame) -> pd.DataFrame:
-    """Compara recortes alternativos: é o efeito das escolhas de modelagem.
+def tabela_decisoes_recorte(bruto: pd.DataFrame) -> pd.DataFrame:
+    """Decisões do recorte e o efeito da alternativa descartada.
 
-    Cada linha é uma decisão possível (incluir internacional, usar o campo
-    NATUREZA em vez do PAÍS, manter self-loops, só voo regular, janela mensal)
-    e o efeito dela no tamanho e na forma da rede.
+    A pergunta define o recorte; a coluna ``alternativa`` registra o caminho
+    não escolhido e ``efeito`` mostra o tamanho da rede se ele fosse usado.
+    Assim, a justificativa não é só conceitual: o custo de cada escolha fica
+    medido no mesmo código que constrói a rede.
     """
-    variantes = {
-        "tudo (com internacional)": dict(pais=None, sem_self_loop=False),
-        "só origem no Brasil": dict(somente_origem=True, sem_self_loop=True),
-        "BR/BR com self-loops": dict(sem_self_loop=False),
-        "canônico (BR/BR, sem self-loop)": dict(),
-        "campo NATUREZA = DOMÉSTICA": dict(pais=None, natureza="DOMÉSTICA"),
-        "canônico, só voo REGULAR": dict(grupo="REGULAR"),
-        "canônico, só janeiro": dict(meses=[1]),
-        "canônico, 1º semestre": dict(meses=[1, 2, 3, 4, 5, 6]),
-    }
-    linhas = []
-    for nome, parametros in variantes.items():
-        resumo = _resumo_recorte(recortar(bruto, **parametros))
-        resumo["recorte"] = nome
-        linhas.append(resumo)
-    tabela = pd.DataFrame(linhas).set_index("recorte")
-    tabela["fracao_decolagens"] = tabela["decolagens"] / tabela.loc["tudo (com internacional)", "decolagens"]
-    return tabela.reset_index()
+    doméstico = _mascara_domestica(bruto)
+    ativo_sem_self = (
+        (bruto["ANO"] == 2025)
+        & (bruto["DECOLAGENS"] > 0)
+        & (bruto[COL_ORIGEM] != bruto[COL_DESTINO])
+    )
+    com_self = (
+        (bruto["ANO"] == 2025)
+        & (bruto["AEROPORTO DE ORIGEM (PAÍS)"] == "BRASIL")
+        & (bruto["AEROPORTO DE DESTINO (PAÍS)"] == "BRASIL")
+        & (bruto["DECOLAGENS"] > 0)
+    )
+    regulares = doméstico & (bruto["GRUPO DE VOO"] == "REGULAR")
+    janeiro = doméstico & (bruto["MÊS"] == 1)
+    natureza = (
+        (bruto["ANO"] == 2025)
+        & (bruto["DECOLAGENS"] > 0)
+        & (bruto[COL_ORIGEM] != bruto[COL_DESTINO])
+        & (bruto["NATUREZA"] == "DOMÉSTICA")
+    )
+    passageiros = (
+        (bruto["ANO"] == 2025)
+        & (bruto["AEROPORTO DE ORIGEM (PAÍS)"] == "BRASIL")
+        & (bruto["AEROPORTO DE DESTINO (PAÍS)"] == "BRASIL")
+        & (bruto["PASSAGEIROS PAGOS"] > 0)
+        & (bruto[COL_ORIGEM] != bruto[COL_DESTINO])
+    )
+
+    def efeito(mascara: pd.Series) -> str:
+        resumo = _resumo_recorte(bruto[mascara])
+        rotas = f"{resumo['rotas']:,}".replace(",", ".")
+        return f"{resumo['nos']} nós, {rotas} rotas"
+
+    return pd.DataFrame([
+        dict(decisao="Janela e agregação", escolha="ano de 2025, por par origem-destino",
+             porque="reduz sazonalidade; par preserva conectividade",
+             alternativa="só janeiro", efeito=efeito(janeiro)),
+        dict(decisao="Malha doméstica", escolha="origem e destino no Brasil",
+             porque="a pergunta é o isolamento nacional",
+             alternativa="incluir internacional", efeito=efeito(ativo_sem_self)),
+        dict(decisao="Campo de domesticidade", escolha="PAÍS das duas pontas",
+             porque="critério direto; NATUREZA erra 671 linhas",
+             alternativa="NATUREZA", efeito=efeito(natureza)),
+        dict(decisao="Rota ativa", escolha="DECOLAGENS > 0",
+             porque="operação efetiva, não venda de assento",
+             alternativa="PASSAGEIROS > 0", efeito=efeito(passageiros)),
+        dict(decisao="Self-loops", escolha="remover origem = destino",
+             porque="self-loop não altera alcance nem caminho",
+             alternativa="manter", efeito=efeito(com_self)),
+        dict(decisao="Tipo de voo", escolha="todos os grupos",
+             porque="malha operada, não só oferta regular",
+             alternativa="só REGULAR", efeito=efeito(regulares)),
+    ])
 
 
 def _haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -234,8 +250,8 @@ def grafo_nao_dirigido(g: nx.DiGraph) -> nx.Graph:
     """Projeção não dirigida: soma os volumes das duas direções de cada par.
 
     Necessária para as ferramentas que só existem em grafo não dirigido
-    (k-core, pontes, articulações). Limitação declarada: um ciclo dirigido
-    1->2->3->1 vira triângulo na projeção.
+    (k-core e Jaccard). Limitação declarada: um ciclo dirigido 1->2->3->1
+    vira triângulo na projeção.
     """
     h = nx.Graph()
     for no, atributos in g.nodes(data=True):
@@ -369,13 +385,13 @@ def distancia_e_eficiencia(g: nx.DiGraph) -> dict:
 
 
 def tabela_centralidades(g: nx.DiGraph) -> pd.DataFrame:
-    """As quatro centralidades do curso (e as variantes de direção).
+    """As quatro centralidades do curso.
 
     - grau: contagem de conexões (entrada/saída);
     - proximidade: quão perto de todos. O networkx mede distância de ENTRADA
       em digrafo; a versão de saída é calculada no grafo transposto;
     - intermediação: passagem obrigatória nos caminhos mais curtos (sem peso).
-      As variantes com custo entram na análise: peso é custo, não importância;
+      Peso é custo, não importância; a medida usa saltos;
     - autovetor: importância por associação. Em digrafo o padrão usa arestas de
       ENTRADA (autoridade); no transposto, de saída (hub).
     """
@@ -407,32 +423,6 @@ def tabela_centralidades(g: nx.DiGraph) -> pd.DataFrame:
     return tabela
 
 
-def tabela_intermediacao_variantes(g: nx.DiGraph) -> pd.DataFrame:
-    """Intermediação sob três definições de caminho mais curto.
-
-    - saltos: caminho mais curto em número de arestas (padrão);
-    - frequencia: custo = 1/decolagens (esperar menos é mais barato, como quem
-      troca de voo prefere conexão frequente);
-    - distancia: custo = distância em km (voo mais curto).
-
-    Compara os rankings: mede o quanto "gargalo topológico" depende da noção de custo.
-    """
-    sem_peso = nx.betweenness_centrality(g)
-    g_frequencia = nx.DiGraph()
-    g_distancia = nx.DiGraph()
-    for u, v, dados in g.edges(data=True):
-        g_frequencia.add_edge(u, v, custo=1.0 / max(dados["decolagens"], 1.0))
-        g_distancia.add_edge(u, v, custo=max(dados["distancia_km"], 1.0))
-    por_frequencia = nx.betweenness_centrality(g_frequencia, weight="custo")
-    por_distancia = nx.betweenness_centrality(g_distancia, weight="custo")
-    return pd.DataFrame({
-        "icao": list(g.nodes()),
-        "intermediacao_saltos": [sem_peso[n] for n in g.nodes()],
-        "intermediacao_frequencia": [por_frequencia[n] for n in g.nodes()],
-        "intermediacao_distancia": [por_distancia[n] for n in g.nodes()],
-    })
-
-
 # ---------------------------------------------------------------------------
 # semana 5: decomposição em núcleos
 # ---------------------------------------------------------------------------
@@ -453,7 +443,7 @@ def tabela_kcore(g: nx.Graph) -> pd.DataFrame:
 
 
 # ---------------------------------------------------------------------------
-# semana 6: Jaccard e esqueleto por limiar
+# semana 6: Jaccard de vizinhança
 # ---------------------------------------------------------------------------
 
 def jaccard_vizinhanca(g: nx.Graph) -> pd.DataFrame:
@@ -482,44 +472,6 @@ def jaccard_vizinhanca(g: nx.Graph) -> pd.DataFrame:
             "decolagens": g[u][v]["decolagens"],
         })
     return pd.DataFrame(linhas).sort_values("jaccard", ascending=False).reset_index(drop=True)
-
-
-def esqueleto_limiar(g: nx.DiGraph, fracoes: list[float] | None = None) -> pd.DataFrame:
-    """Esqueleto por limiar: mantém as rotas mais movimentadas até cobrir x% dos voos.
-
-    Para cada fração de cobertura, mede o que resta da rede. O ponto em que o
-    maior componente fraco encolhe é o limite em que o "tronco" deixa de ligar
-    o país; é o critério para escolher o que não pode cair.
-    """
-    if fracoes is None:
-        fracoes = [0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 1.0]
-    arestas = sorted(g.edges(data=True), key=lambda e: e[2]["decolagens"], reverse=True)
-    total = sum(d["decolagens"] for _, _, d in arestas)
-    linhas = []
-    for fracao in fracoes:
-        corte = fracao * total
-        h = nx.DiGraph()
-        h.add_nodes_from(g.nodes())
-        acumulado = 0.0
-        for u, v, dados in arestas:
-            if acumulado >= corte:
-                break
-            h.add_edge(u, v, **dados)
-            acumulado += dados["decolagens"]
-        wcc = sorted(nx.weakly_connected_components(h), key=len, reverse=True)
-        scc = sorted(nx.strongly_connected_components(h), key=len, reverse=True)
-        linhas.append({
-            "fracao_alvo": fracao,
-            "fracao_real": acumulado / total,
-            "arestas": h.number_of_edges(),
-            "nos": h.number_of_nodes(),
-            "nos_com_conexao": sum(1 for no in h if h.degree(no) > 0),
-            "componentes_fracos": len(wcc),
-            "maior_wcc": len(wcc[0]),
-            "maior_scc": len(scc[0]),
-            "decolagens_cobertas": acumulado,
-        })
-    return pd.DataFrame(linhas)
 
 
 # ---------------------------------------------------------------------------
@@ -561,72 +513,12 @@ def impacto_remocao(g: nx.DiGraph, no: str) -> dict:
     }
 
 
-def _efeito_remocao(h: nx.DiGraph, eficiencia_base: float, wcc_base: int) -> dict:
-    """Efeito imediato de uma remoção: eficiência e maior WCC relativos, e nós isolados."""
-    maior = len(max(nx.weakly_connected_components(h), key=len))
-    return {
-        "eficiencia_relativa": eficiencia_global(h) / eficiencia_base,
-        "maior_wcc_relativo": maior / wcc_base,
-        "nos_isolados": sum(1 for x in h if h.degree(x) == 0),
-    }
-
-
-def curva_remocao_alvo(g: nx.DiGraph, ordem: list[str], k_max: int = 12) -> pd.DataFrame:
-    """Curva de robustez sob remoção dos k primeiros da ordem dada (ex.: betweenness)."""
-    eficiencia_0 = eficiencia_global(g)
-    wcc_0 = len(max(nx.weakly_connected_components(g), key=len))
-    h = g.copy()
-    linhas = [{"k": 0, "eficiencia_relativa": 1.0, "maior_wcc_relativo": 1.0, "nos_isolados": 0}]
-    for k, no in enumerate([x for x in ordem if x in g][:k_max], start=1):
-        h.remove_node(no)
-        linhas.append({"k": k, **_efeito_remocao(h, eficiencia_0, wcc_0)})
-    return pd.DataFrame(linhas)
-
-
-def curva_remocao_aleatoria(
-    g: nx.DiGraph, k_max: int = 12, sorteios: int = 12, seed: int = 42
-) -> pd.DataFrame:
-    """Mesma curva, removendo nós aleatórios: a linha de base para comparar.
-
-    A distância entre a curva aleatória e a curva alvo mostra se a rede tem
-    alvos preferenciais: se derrubar os hubs dói muito mais do que sortear
-    aeródromos ao acaso, a rede é concentrada (e o ataque informado compensa).
-    """
-    rng = random.Random(seed)
-    eficiencia_0 = eficiencia_global(g)
-    wcc_0 = len(max(nx.weakly_connected_components(g), key=len))
-    acumulado = {k: [] for k in range(1, k_max + 1)}
-    for _ in range(sorteios):
-        ordem = list(g.nodes())
-        rng.shuffle(ordem)
-        h = g.copy()
-        for k, no in enumerate(ordem[:k_max], start=1):
-            h.remove_node(no)
-            efeito = _efeito_remocao(h, eficiencia_0, wcc_0)
-            acumulado[k].append((efeito["eficiencia_relativa"], efeito["maior_wcc_relativo"]))
-    linhas = []
-    for k in range(1, k_max + 1):
-        valores = acumulado[k]
-        linhas.append({
-            "k": k,
-            "eficiencia_relativa_media": float(np.mean([v[0] for v in valores])),
-            "eficiencia_relativa_desvio": float(np.std([v[0] for v in valores])),
-            "maior_wcc_relativo_medio": float(np.mean([v[1] for v in valores])),
-            "sorteios": sorteios,
-            "seed": seed,
-        })
-    return pd.DataFrame(linhas)
-
-
 def arestas_criticas(g: nx.DiGraph, k: int = 15) -> pd.DataFrame:
     """Intermediação de aresta: a rota que mais corta caminhos mais curtos.
 
     Para cada aresta, mede-se também o que acontece quando ela sai: os dois
-    sentidos ainda se alcançam? em quantos saltos? A coluna
-    ``ponte_na_projecao`` marca a rota cuja remoção (em qualquer sentido)
-    separa a projeção não dirigida em dois pedaços.
+    sentidos ainda se alcançam? em quantos saltos?
     """
-    pontes = {frozenset(aresta) for aresta in nx.bridges(grafo_nao_dirigido(g))}
     entre = nx.edge_betweenness_centrality(g)
     linhas = []
     for (u, v), valor in entre.items():
@@ -642,7 +534,6 @@ def arestas_criticas(g: nx.DiGraph, k: int = 15) -> pd.DataFrame:
             "passageiros": g[u][v]["passageiros"],
             "conecta_sem_aresta": alcanca,
             "saltos_sem_aresta": saltos,
-            "ponte_na_projecao": frozenset((u, v)) in pontes,
         })
     tabela = pd.DataFrame(linhas).sort_values("intermediacao_aresta", ascending=False).reset_index(drop=True)
     return tabela.head(k)

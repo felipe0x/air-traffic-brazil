@@ -2,12 +2,12 @@
 
 Cada função corresponde a uma ferramenta das semanas 2 a 6 do curso; a
 documentação diz o que ela mede no domínio do problema e a limitação dela.
-Os notebooks ``01_dados``, ``02_rede`` e ``03_analise`` chamam essas funções.
+O notebook ``apresentacao`` chama essas funções.
 
 Convenções:
 - nó = aeródromo (sigla ICAO); aresta dirigida = rota doméstica origem -> destino;
-- atributos de aresta: ``decolagens``, ``passageiros``, ``assentos``,
-  ``distancia_km`` (haversine), ``distancia_anac_km`` (média do campo da ANAC);
+- atributos de aresta: ``decolagens``, ``passageiros`` e ``distancia_km``
+  (haversine, usada como custo nas variantes de intermediação);
 - recorte canônico: PAÍS == BRASIL nas duas pontas, ``DECOLAGENS > 0``,
   sem self-loops, agregado por par.
 """
@@ -71,7 +71,7 @@ def recortar(
 ) -> pd.DataFrame:
     """Aplica um recorte qualquer sobre o arquivo bruto (linha = combo empresa/mês/rota).
 
-    Cada parâmetro é uma decisão de modelagem que o notebook ``01_dados``
+    Cada parâmetro é uma decisão de modelagem que o notebook ``apresentacao``
     compara: ``pais`` filtra as pontas domésticas, ``natureza`` usa o campo
     oficial da ANAC, ``grupo`` separa voo regular, ``meses`` restringe a janela.
     """
@@ -103,7 +103,6 @@ def _resumo_recorte(d: pd.DataFrame) -> dict:
         "nos": n,
         "arestas": l,
         "densidade": l / (n * (n - 1)) if n > 1 else float("nan"),
-        "grau_medio_arestas": l / n if n else float("nan"),
         "decolagens": int(d["DECOLAGENS"].sum()),
         "passageiros": int(d["PASSAGEIROS PAGOS"].sum()),
     }
@@ -173,10 +172,6 @@ def agregar_rotas(d: pd.DataFrame) -> pd.DataFrame:
         .agg(
             decolagens=("DECOLAGENS", "sum"),
             passageiros=("PASSAGEIROS PAGOS", "sum"),
-            assentos=("ASSENTOS", "sum"),
-            distancia_anac_km=("DISTÂNCIA VOADA (KM)", "mean"),
-            empresas=("empresa", "nunique"),
-            linhas=("DECOLAGENS", "size"),
             nome_origem=("nome_origem", "first"),
             uf_origem=("uf_origem", "first"),
             regiao_origem=("regiao_origem", "first"),
@@ -205,7 +200,7 @@ def posicoes(g: nx.Graph) -> dict[str, tuple[float, float]]:
 def fundo_mapa(eixo, cor: str = "#f2f2f2", borda: str = "#cccccc") -> bool:
     """Desenha o contorno dos estados brasileiros no eixo (cópia local do GeoJSON).
 
-    Devolve False se o arquivo ``data/brasil_estados.geojson`` não existir — os
+    Devolve False se o arquivo ``data/brasil_estados.geojson`` não existir: os
     mapas continuam válidos, só ficam sem o contorno. Gerar com
     ``python scripts/gerar_mapa_base.py``.
     """
@@ -217,9 +212,9 @@ def fundo_mapa(eixo, cor: str = "#f2f2f2", borda: str = "#cccccc") -> bool:
     return True
 
 
-def construir_digrafo(rotas: pd.DataFrame, com_coordenadas: bool = True) -> nx.DiGraph:
+def construir_digrafo(rotas: pd.DataFrame) -> nx.DiGraph:
     """Digrafo da malha: cada linha de ``rotas`` vira uma aresta dirigida com atributos."""
-    coordenadas = _coordenadas() if com_coordenadas else {}
+    coordenadas = _coordenadas()
     g = nx.DiGraph()
     for r in rotas.itertuples():
         u, v = r.origem, r.destino
@@ -233,10 +228,7 @@ def construir_digrafo(rotas: pd.DataFrame, com_coordenadas: bool = True) -> nx.D
         g.add_edge(u, v,
                    decolagens=float(r.decolagens),
                    passageiros=float(r.passageiros),
-                   assentos=float(r.assentos),
-                   distancia_km=round(distancia, 1),
-                   distancia_anac_km=float(r.distancia_anac_km) if not pd.isna(r.distancia_anac_km) else float("nan"),
-                   empresas=int(r.empresas))
+                   distancia_km=round(distancia, 1))
     return g
 
 
@@ -264,7 +256,7 @@ def grafo_nao_dirigido(g: nx.DiGraph) -> nx.Graph:
 # ---------------------------------------------------------------------------
 
 def metricas_basicas(g: nx.Graph) -> dict:
-    """Tamanho, densidade e grau médio — o cartão de identidade da rede."""
+    """Tamanho, densidade e grau médio: o cartão de identidade da rede."""
     n, l = g.number_of_nodes(), g.number_of_edges()
     graus = [d for _, d in g.degree()]
     return {
@@ -309,23 +301,21 @@ def ccdf(valores: pd.Series | np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return x, np.asarray(y)
 
 
-def matriz_adjacencia(g: nx.Graph, ordem: list, peso: str = "decolagens") -> np.ndarray:
-    """Matriz de adjacência ponderada na ordem de nós dada.
+def matriz_adjacencia(g: nx.Graph, ordem: list) -> np.ndarray:
+    """Matriz de adjacência ponderada por ``decolagens``, na ordem de nós dada.
 
-    ``peso`` escolhe o atributo de aresta usado como valor (padrão
-    ``decolagens``); em grafo não dirigido a matriz é espelhada. Arestas com
-    ponta fora de ``ordem`` são ignoradas — a matriz serve para ler um recorte
-    da topologia, não o grafo inteiro.
+    Em grafo não dirigido a matriz é espelhada. Arestas com ponta fora de
+    ``ordem`` são ignoradas; a matriz serve para ler um recorte da topologia,
+    não o grafo inteiro.
     """
     indice = {no: i for i, no in enumerate(ordem)}
     a = np.zeros((len(ordem), len(ordem)))
     for u, v, dados in g.edges(data=True):
         if u not in indice or v not in indice:
             continue
-        valor = dados.get(peso, 1.0)
-        a[indice[u], indice[v]] += valor
+        a[indice[u], indice[v]] += dados["decolagens"]
         if not g.is_directed():
-            a[indice[v], indice[u]] += valor
+            a[indice[v], indice[u]] += dados["decolagens"]
     return a
 
 
@@ -570,7 +560,7 @@ def jaccard_empresas(b: nx.Graph, minimo_empresas: int = 2) -> pd.DataFrame:
     J(a,b) = |E(a) ∩ E(b)| / |E(a) ∪ E(b)|, onde E(x) é o conjunto de empresas
     do aeroporto x. Contagem bruta devolveria pares que só aparecem juntos
     porque ambos têm muitas empresas; o Jaccard normaliza e revela os pares
-    exclusivos — candidatos a substitutos operacionais.
+    exclusivos, candidatos a substitutos operacionais.
     """
     empresas = {
         aeroporto: {v for _, v in b.neighbors(("aeroporto", aeroporto))}
@@ -635,7 +625,6 @@ def esqueleto_limiar(g: nx.DiGraph, fracoes: list[float] | None = None) -> pd.Da
     arestas = sorted(g.edges(data=True), key=lambda e: e[2]["decolagens"], reverse=True)
     total = sum(d["decolagens"] for _, _, d in arestas)
     linhas = []
-    acumulado = 0.0
     for fracao in fracoes:
         corte = fracao * total
         h = nx.DiGraph()
@@ -726,7 +715,7 @@ def curva_remocao_alvo(g: nx.DiGraph, ordem: list[str], k_max: int = 12) -> pd.D
 def curva_remocao_aleatoria(
     g: nx.DiGraph, k_max: int = 12, sorteios: int = 12, seed: int = 42
 ) -> pd.DataFrame:
-    """Mesma curva, removendo nós aleatórios — a linha de base para comparar.
+    """Mesma curva, removendo nós aleatórios: a linha de base para comparar.
 
     A distância entre a curva aleatória e a curva alvo mostra se a rede tem
     alvos preferenciais: se derrubar os hubs dói muito mais do que sortear
@@ -793,49 +782,27 @@ def _km_do_caminho(g: nx.DiGraph, caminho: list[str]) -> float:
     return sum(g[caminho[i]][caminho[i + 1]]["distancia_km"] for i in range(len(caminho) - 1))
 
 
-def pares_afetados(
-    g: nx.DiGraph,
-    no: str | None = None,
-    aresta: tuple[str, str] | None = None,
-    top_nos: int | None = None,
-) -> pd.DataFrame:
-    """Pares de aeroportos cujo caminho mais curto passa pelo obstáculo.
+def pares_afetados(g: nx.DiGraph, no: str) -> pd.DataFrame:
+    """Pares de aeroportos cujo caminho mais curto passa pelo aeródromo ``no``.
 
-    Para a pergunta do projeto: se um aeródromo (ou rota) fica indisponível, quais
-    ligações perdem o caminho mais curto e quanto elas alongam. Mede-se o antes e o
-    depois em saltos e em km, e se sobra caminho nenhum.
+    Para a pergunta do projeto: se um aeródromo fica indisponível, quais ligações
+    perdem o caminho mais curto e quanto elas alongam. Mede-se o antes e o depois
+    em saltos e em km, e se sobra caminho nenhum.
 
-    Estratégia: uma árvore de caminhos por origem no grafo completo e outra no grafo
-    com o obstáculo removido; para cada destino, compara. ``top_nos`` limita os
-    candidatos aos N aeródromos de maior movimento (None = todos).
+    Estratégia: uma árvore de caminhos por origem no grafo completo e outra no
+    grafo sem ``no``; para cada destino, compara.
     """
     h = g.copy()
-    if no is not None:
-        h.remove_node(no)
-    if aresta is not None and h.has_edge(*aresta):
-        h.remove_edge(*aresta)
-
-    if top_nos is None:
-        candidatos = list(g.nodes())
-    else:
-        passageiros = {n: g.in_degree(n, weight="passageiros") + g.out_degree(n, weight="passageiros") for n in g}
-        candidatos = sorted(passageiros, key=passageiros.get, reverse=True)[:top_nos]
+    h.remove_node(no)
 
     linhas = []
-    for origem in candidatos:
-        if origem not in g or origem not in h:
+    for origem in g:
+        if origem not in h:
             continue
         antes_map = nx.single_source_shortest_path(g, origem)
         depois_map = nx.single_source_shortest_path(h, origem)
-        for destino in candidatos:
-            if destino == origem or destino not in antes_map:
-                continue
-            antes = antes_map[destino]
-            if no is not None and no not in antes[1:-1]:
-                continue
-            if aresta is not None and not any(
-                (antes[i], antes[i + 1]) == aresta for i in range(len(antes) - 1)
-            ):
+        for destino, antes in antes_map.items():
+            if destino == origem or no not in antes[1:-1]:
                 continue
             depois = depois_map.get(destino)
             linhas.append({

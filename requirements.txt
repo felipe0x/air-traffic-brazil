@@ -8,7 +8,3 @@ geopandas==1.2.0
 jupyterlab==4.6.4
 ipykernel==7.4.0
 nbconvert==7.17.2
-
-# Opcionais (usar só se necessário; registrar no README)
-# nxviz>=0.7.4
-# pydot

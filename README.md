@@ -136,9 +136,9 @@ custam 7,5%: a malha é tolerante a falha aleatória e sensível a falha escolhi
 - **Projeção.** O k-core de 24 aeródromos, as 18 articulações e as 22 pontes saem da projeção
   não dirigida; nela um ciclo dirigido de 3 nós vira triângulo.
 - **Dados faltantes.** Ausência de aresta é rota não reportada na janela, não isolamento real.
-  `SBBP` é o único nó fora do SCC porque tem 1 decolagem e 0 passageiro pago no ano.
-  `DISTÂNCIA VOADA (KM)`, com 622 nulos nas linhas Brasil–Brasil, não entra nos cálculos; a
-  distância vem de haversine.
+  `SBBP` é o único nó fora do SCC: não tem rota de entrada, só 1 decolagem e 0 passageiro pago
+  no ano. `DISTÂNCIA VOADA (KM)`, com 622 nulos nas linhas Brasil–Brasil, não entra nos
+  cálculos; a distância vem de haversine.
 - **Medida sem peso.** `SBJD` (Jundiaí) aparece no top-10 de intermediação com 0 passageiro pago:
   a centralidade conta passagem topológica, não demanda.
 

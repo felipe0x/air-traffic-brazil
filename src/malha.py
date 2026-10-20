@@ -155,7 +155,6 @@ def _renomear_colunas(d: pd.DataFrame) -> pd.DataFrame:
         "AEROPORTO DE DESTINO (NOME)": "nome_destino",
         "AEROPORTO DE DESTINO (UF)": "uf_destino",
         "AEROPORTO DE DESTINO (REGIÃO)": "regiao_destino",
-        "EMPRESA (SIGLA)": "empresa",
     })
 
 
@@ -235,8 +234,8 @@ def grafo_nao_dirigido(g: nx.DiGraph) -> nx.Graph:
     """Projeção não dirigida: soma os volumes das duas direções de cada par.
 
     Necessária para as ferramentas que só existem em grafo não dirigido
-    (k-core, pontes, articulações). Limitação
-    declarada: um ciclo dirigido 1->2->3->1 vira triângulo na projeção.
+    (k-core, pontes, articulações). Limitação declarada: um ciclo dirigido
+    1->2->3->1 vira triângulo na projeção.
     """
     h = nx.Graph()
     for no, atributos in g.nodes(data=True):
@@ -331,7 +330,7 @@ def eficiencia_global(g: nx.Graph) -> float:
     total = 0.0
     for no in g:
         for alvo, distancia in nx.single_source_shortest_path_length(g, no).items():
-            if alvo != no and distancia > 0:
+            if alvo != no:
                 total += 1.0 / distancia
     return total / (n * (n - 1))
 
@@ -344,10 +343,8 @@ def resumo_componentes(g: nx.DiGraph) -> dict:
     return {
         "n_wcc": len(wccs),
         "maior_wcc": len(wccs[0]),
-        "tamanhos_wcc": [len(c) for c in wccs],
         "n_scc": len(sccs),
         "maior_scc": len(grande),
-        "tamanhos_scc": [len(c) for c in sccs],
         "fora_do_maior_scc": sorted(set(g) - grande),
     }
 
@@ -362,7 +359,6 @@ def distancia_e_eficiencia(g: nx.DiGraph) -> dict:
     grande = maior_scc(g)
     sub = g.subgraph(grande)
     return {
-        "n_scc": len(grande),
         "comprimento_medio_scc": nx.average_shortest_path_length(sub),
         "diametro_scc": nx.diameter(sub),
         "raio_scc": nx.radius(sub),

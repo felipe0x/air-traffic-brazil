@@ -59,12 +59,14 @@ Criticidade não é volume. Um aeroporto pequeno pode ser o único caminho de um
 | k-core, core number e degeneracy | 5 | In[11] (`malha.tabela_kcore`; `nx.core_number`/`nx.k_core`) | miolo denso de 24 aeródromos; degeneração 18 |
 | Jaccard de vizinhança | 6 | In[12] (`malha.jaccard_vizinhanca`) | redundância de destinos (SBGL–SBGR, 0,73) |
 | esqueleto por limiar | 6 | In[13] (`malha.esqueleto_limiar`) | tronco que carrega 80% das decolagens em 283 rotas |
-| articulações e pontes (complementar) | 4–5 | In[14] (`nx.articulation_points`, `nx.bridges`) | 16 dos 20 hubs são pontos de corte da projeção |
-| remoção de nó e curvas de falha | 4–5 | In[15]–In[16] (`malha.impacto_remocao`, `malha.curva_remocao_*`) | medir o estrago (alvo × aleatória) |
-| arestas críticas e caminhos alternativos | 4–6 | In[17]–In[18] (`malha.arestas_criticas`, `malha.pares_afetados`) | responder "quais rotas restam" |
+| arestas críticas e caminhos alternativos | 4 | In[17]–In[18] (`malha.arestas_criticas`, `malha.pares_afetados`) | responder "quais rotas restam" |
 
 > Cada linha corresponde a conteúdo nomeado no código; `In[k]` é a célula executada em
 > `notebooks/apresentacao.ipynb`. A mesma tabela está condensada no vídeo.
+
+**Fora da caixa do curso.** O notebook também usa articulações e pontes (In[14]) e curvas de
+remoção alvo × aleatória (In[15]–In[16]) como apoio à interpretação. Não são conteúdo das
+semanas 2 a 6, então ficam fora da tabela e não entram na contagem de conceitos do curso.
 
 ## Estrutura do repositório
 

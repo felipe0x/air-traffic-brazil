@@ -10,10 +10,7 @@ Felipe Rocha Silva · Kaiky Hanry Alencar Fernandes
 
 https://youtu.be/66WxZsKG3PY
 
-Vídeo de 15 minutos no total (não listado), com Kaiky Hanry Alencar Fernandes e Felipe
-Rocha Silva, câmera aberta e rosto visível, resultados e notebook na tela.
-
-> Requisito do enunciado: sem o link explícito aqui, a nota do projeto é zero.
+Link do vídeo de apresentação do projeto desenvolvido. Vídeo de 15 minutos apresentando o problema, desenvolvimento da solução, resultados e interpretações realizadas.
 
 ## Problema e pergunta
 

@@ -8,7 +8,10 @@ Felipe Rocha Silva · Kaiky Hanry Alencar Fernandes
 
 ## Vídeo
 
-**A preencher:** vídeo no YouTube (não listado), até 15 minutos no total, todos os integrantes com câmera aberta e rosto visível.
+https://youtu.be/66WxZsKG3PY
+
+Vídeo de 15 minutos no total (não listado), com Kaiky Hanry Alencar Fernandes e Felipe
+Rocha Silva, câmera aberta e rosto visível, resultados e notebook na tela.
 
 > Requisito do enunciado: sem o link explícito aqui, a nota do projeto é zero.
 
@@ -44,23 +47,24 @@ Criticidade não é volume. Um aeroporto pequeno pode ser o único caminho de um
 
 | conceito | semana | onde aparece (notebook, célula/função) | para que serviu |
 |---|---|---|---|
-| digrafo e atributos de nó/aresta | 2 | In[2] (`malha.construir_digrafo`) | modelar rota com direção e pesos |
+| digrafo e atributos de nó/aresta | 2 | In[2] (`malha.construir_digrafo`) | modelar rota com direção e pesos; 673/987 pares nas duas direções justificam o grafo dirigido |
 | densidade | 2 | In[4] (`malha.metricas_basicas`) | mostrar que a malha é esparsa (0,054) |
 | grau e distribuição de grau | 2 | In[5] (`malha.tabela_graus`, `malha.ccdf`) | cauda longa; média não descreve o aeródromo |
-| reciprocidade | 2 | In[4] | 673/987 pares bidirecionais justificam o dirigido |
-| BFS em camadas | 3 | In[6] (`malha.camadas_bfs`) | mundo pequeno: 97% a ≤ 2 saltos de SBGR; núcleo × periferia |
+| BFS em camadas | 3 | In[6] (`malha.camadas_bfs`) | mundo pequeno: 97% a ≤ 2 saltos de SBGR; as camadas revelam núcleo e periferia |
 | grau de entrada e de saída | 3 | In[5] (`malha.tabela_graus`) | condições de partida/chegada usadas na falha |
 | caminhos mais curtos e distâncias | 4 | In[7] (`malha.distancia_e_eficiencia`), In[13] (`malha.pares_afetados`) | comprimento médio de 2,47 saltos; rota que resta após a falha |
-| componentes (WCC/SCC) | 4 | In[7] (`malha.resumo_componentes`) | malha é 1 WCC; `SBBP` fora do SCC |
+| componentes (WCC/SCC) | 4 | In[7] e In[11] (`malha.resumo_componentes`, usada por `malha.impacto_remocao`) | malha é 1 WCC; `SBBP` fora do SCC; contagem de componentes depois da falha |
 | diâmetro, raio, centro/periferia | 4 | In[7] (`malha.distancia_e_eficiencia`) | pior caso de 5 saltos; periferia de 9 aeródromos |
-| eficiência global | 4 | In[7] (`malha.eficiencia_global`) | régua da robustez (pune desconexão) |
+| eficiência global | 4 | In[7] e In[11] (`malha.eficiencia_global`, usada por `malha.distancia_e_eficiencia` e `malha.impacto_remocao`) | régua da robustez (pune desconexão) |
 | centralidades: grau, proximidade, intermediação, autovetor | 4 | In[8] (`malha.tabela_centralidades`) | achar os gargalos (SBKP, SBCF, SBEG) |
 | k-core, core number e degeneracy | 5 | In[9] (`malha.tabela_kcore`; `nx.core_number`/`nx.k_core`) | miolo denso de 24 aeródromos; degeneração 18 |
 | Jaccard de vizinhança | 6 | In[10] (`malha.jaccard_vizinhanca`) | redundância de vizinhança (SBGL–SBGR, 0,73) |
+| projeção para grafo não dirigido | 6 | In[2] (`malha.grafo_nao_dirigido`) | k-core e Jaccard só existem em grafo simples |
 | arestas críticas e caminhos alternativos | 4 | In[12]–In[13] (`malha.arestas_criticas`, `malha.pares_afetados`) | responder "quais rotas restam" |
 
 > Cada linha corresponde a conteúdo nomeado no código; `In[k]` é a célula executada em
-> `notebooks/apresentacao.ipynb`. A mesma tabela está condensada no vídeo.
+> `notebooks/apresentacao.ipynb`, que está no repositório já executado, com as saídas de
+> todas as células.
 
 ## Estrutura do repositório
 
@@ -71,7 +75,8 @@ Criticidade não é volume. Um aeroporto pequeno pode ser o único caminho de um
 ├── scripts/reproduzir.sh          # reprodução em um comando
 ├── scripts/gerar_coordenadas.py   # auxiliar: coordenadas dos aeródromos (OurAirports)
 ├── scripts/gerar_mapa_base.py     # auxiliar: contorno dos estados (GeoJSON)
-├── data/                          # 2025.csv da ANAC + auxiliares versionados
+├── requirements.txt               # dependências fixadas
+├── data/                          # 2025.csv da ANAC + auxiliares versionados (ver data/README.md)
 ├── figuras/                       # 01 a 06, geradas pelo notebook
 └── resultados/                    # 10 CSVs gerados pelo notebook
 ```
@@ -134,11 +139,12 @@ miolo, 64 aeródromos têm core number ≤ 2: a periferia depende de poucos cami
 - **Medida sem peso.** `SBJD` (Jundiaí) aparece no top-10 de intermediação com 0 passageiro pago:
   a centralidade conta passagem topológica, não demanda.
 
-**Figuras e tabelas.** A análise completa está em `notebooks/apresentacao.ipynb`
-(executado), com as figuras numeradas de 01 a 06 em `figuras/` e as tabelas em
-`resultados/`, com destaque para `ranking_criticidade.csv` (síntese de criticidade por
-aeródromo), `arestas_criticas.csv`, `rotas_alternativas_SBKP.csv` e
-`rotas_alternativas_SBEG.csv` (os pares afetados e o caminho que resta em cada caso).
+**Figuras e tabelas.** A análise completa está em
+[`notebooks/apresentacao.ipynb`](notebooks/apresentacao.ipynb), já executado, com as figuras
+numeradas de 01 a 06 em `figuras/` e as tabelas em `resultados/`, com destaque para
+`ranking_criticidade.csv` (síntese de criticidade por aeródromo), `arestas_criticas.csv`,
+`rotas_alternativas_SBKP.csv` e `rotas_alternativas_SBEG.csv` (os pares afetados e o caminho
+que resta em cada caso).
 
 ## Limitações do modelo e próximos passos
 
